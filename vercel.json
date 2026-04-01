@@ -16,10 +16,6 @@
       "dest": "apps/control-plane/src/vercel.ts"
     },
     {
-      "src": "/_next/(.*)",
-      "dest": "apps/web/_next/$1"
-    },
-    {
       "src": "/(.*)",
       "dest": "apps/web/$1"
     }

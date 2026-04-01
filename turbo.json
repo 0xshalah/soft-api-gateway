@@ -1,10 +1,24 @@
 {
   "$schema": "https://turbo.build/schema.json",
   "globalDependencies": ["**/.env.*local"],
+  "globalEnv": [
+    "DATABASE_URL",
+    "REDIS_URL",
+    "UPSTASH_REDIS_REST_URL",
+    "UPSTASH_REDIS_REST_TOKEN",
+    "CLICKHOUSE_URL",
+    "CLICKHOUSE_DB",
+    "PORT",
+    "FRONTEND_URL",
+    "DATA_PLANE_PORT",
+    "NEXT_PUBLIC_API_URL",
+    "NEXT_PUBLIC_DATA_PLANE_URL",
+    "NEXT_PUBLIC_WS_LOGS_URL"
+  ],
   "tasks": {
     "build": {
       "dependsOn": ["^build"],
-      "outputs": [".next/**", "!.next/cache/**", "dist/**"]
+      "outputs": [".next/**", "!.next/cache/**", "dist/**", "public/**"]
     },
     "lint": {
       "dependsOn": ["^lint"]
