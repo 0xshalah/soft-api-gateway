@@ -1,0 +1,66 @@
+// File: packages/db/prisma/schema.prisma
+
+generator client {
+  provider      = "prisma-client-js"
+  engineType    = "binary"
+  binaryTargets = ["native"]
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id        String   @id @default(uuid()) @db.Uuid
+  email     String   @unique @db.VarChar
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamp()
+  keys      Key[]
+
+  @@map("users")
+}
+
+model Endpoint {
+  id        String      @id @default(uuid()) @db.Uuid
+  name      String      @db.VarChar
+  path      String      @db.VarChar
+  targetUrl   String      @map("target_url") @db.VarChar
+  method      String      @db.VarChar
+  upstreamAuth String?    @map("upstream_auth") @db.VarChar
+  status       String     @default("Active") @db.VarChar(20)
+  lastHealthCheck DateTime? @map("last_health_check") @db.Timestamp()
+  createdAt    DateTime   @default(now()) @map("created_at") @db.Timestamp()
+  rules       RouteRule[]
+
+  @@unique([path, method], map: "idx_unique_path_method")
+  @@map("endpoints")
+}
+
+model RouteRule {
+  id                String   @id @default(uuid()) @db.Uuid
+  endpointId        String   @map("endpoint_id") @db.Uuid
+  endpoint          Endpoint @relation(fields: [endpointId], references: [id], onDelete: Cascade)
+  rateLimitRpm      Int      @default(60) @map("rate_limit_rpm")
+  retryCount        Int      @default(0) @map("retry_count")
+  backoffMultiplier Float    @default(1.0) @map("backoff_multiplier")
+
+  @@index([endpointId], map: "idx_route_rules_endpoint_id")
+  @@map("route_rules")
+}
+
+model Key {
+  id        String    @id @default(uuid()) @db.Uuid
+  name      String    @db.VarChar
+  prefix    String    @db.VarChar(15)
+  hash      String    @unique(map: "idx_unique_key_hash") @db.VarChar(64)
+  scopes    String[]  @db.Text
+  status    String    @default("Active") @db.VarChar(20)
+  lastUsed  DateTime? @map("last_used") @db.Timestamp()
+  createdBy String?   @map("created_by") @db.Uuid
+  creator   User?     @relation(fields: [createdBy], references: [id], onDelete: SetNull)
+  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamp()
+
+  @@index([prefix], map: "idx_keys_prefix")
+  @@index([status], map: "idx_keys_status")
+  @@map("keys")
+}

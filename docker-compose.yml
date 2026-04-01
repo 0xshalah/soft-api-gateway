@@ -1,0 +1,95 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:15-alpine
+    container_name: soft_analytics_postgres
+    environment:
+      POSTGRES_USER: root
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: soft_analytics_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U root -d soft_analytics_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    container_name: soft_analytics_redis
+    command: redis-server --appendonly yes
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+
+  clickhouse:
+    image: clickhouse/clickhouse-server:23.8-alpine
+    container_name: soft_analytics_clickhouse
+    ports:
+      - "8123:8123"
+      - "9000:9000"
+    environment:
+      CLICKHOUSE_DB: soft_analytics_logs
+      CLICKHOUSE_USER: default
+      CLICKHOUSE_PASSWORD: password
+    ulimits:
+      nofile:
+        soft: 262144
+        hard: 262144
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+    volumes:
+      - clickhouse_data:/var/lib/clickhouse
+
+  data-plane:
+    build: 
+      context: apps/data-plane
+      dockerfile: Dockerfile
+    container_name: soft_analytics_data_plane
+    ports:
+      - "8081:8081"
+    environment:
+      REDIS_URL: redis:6379
+    depends_on:
+      - redis
+
+  control-plane:
+    build:
+      context: .
+      dockerfile: apps/control-plane/Dockerfile
+    container_name: soft_analytics_control_plane
+    ports:
+      - "3000:3000"
+    environment:
+      DATABASE_URL: "postgresql://root:password@postgres:5432/soft_analytics_db?schema=public"
+      REDIS_URL: "redis://redis:6379"
+      FRONTEND_URL: "http://localhost:3001"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_started
+
+  web:
+    build:
+      context: .
+      dockerfile: apps/web/Dockerfile
+    container_name: soft_analytics_web
+    ports:
+      - "3001:3000" # Map host 3001 to container 3000
+    environment:
+      NEXT_PUBLIC_API_URL: "http://localhost:3000" # Internal browser calls to Control Plane
+    depends_on:
+      - control-plane
+
+volumes:
+  postgres_data:
+  redis_data:
+  clickhouse_data:
